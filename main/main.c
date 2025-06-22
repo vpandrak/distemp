@@ -17,7 +17,7 @@ typedef struct  __attribute__((packed)){
 static QueueHandle_t MSt_evt_queue = NULL;
 
 
-void MSt_set_data(void* pvParameters){
+void MSt_send_to_display(void* pvParameters){
     DISPLAY_T* oled = (DISPLAY_T*) pvParameters;
     climat climat;
     char temp[8];
@@ -30,11 +30,8 @@ void MSt_set_data(void* pvParameters){
             ESP_LOGD("MAIN"," Влажность воздуха: %d\n", climat.humidity);
             sniprintf(temp, sizeof(temp), "Temp %d", climat.temperature);
             sniprintf(hum, sizeof(hum), "Hum %d", climat.humidity);
-            display_clear_screen(oled, false);
             display_DISPLAY_Text(oled, 0,temp, 8, false);
             display_DISPLAY_Text(oled, 1, hum, 7, false);
-            vTaskDelay(3000/portTICK_PERIOD_MS);
-
         } else{
             ESP_LOGE("MAIN", "Сообщение не получено из очереди");
         }
@@ -43,7 +40,7 @@ void MSt_set_data(void* pvParameters){
     
 }
 
-void MSt_server(void* pvParameters){
+void MSt_get_data(void* pvParameters){
     climat clim;
     while (1)
     {
@@ -67,26 +64,18 @@ void MSt_server(void* pvParameters){
 void app_main(void)
 {
     DISPLAY_T oled;
-    int center, top, bottom;
-    char lineChar[20];
-    oled.flip = true;
     i2c_master_init(&oled,SDA_I2C_PIN, SCL_I2C_PIN, GPIO_NUM_11);
     display_init(&oled, 128, 64);
-    
-    //display_DISPLAY_Text(&oled, 0, "Hello", 5, false);
-    //display_DISPLAY_Text(&oled, 1, "ABCDEFGHIJKLMNOP", 16, false);
-    
-    
-
+    display_clear_screen(&oled, false);
     MSt_evt_queue = xQueueCreate(10, sizeof(climat));
     if (MSt_evt_queue ==NULL){
         printf("queue is not created\n");
     }
 
-    
-    xTaskCreate(MSt_set_data, "set_data Task", 4096, &oled, 2, NULL);
-    xTaskCreate(MSt_server, "Server Task", 2048, NULL, 2, NULL);
     dht11_set_pin(DHT11_PIN);
+    xTaskCreate(MSt_send_to_display, "Send_to_display Task", 2048, &oled, 2, NULL);
+    xTaskCreate(MSt_get_data, "Get_data Task", 2048, NULL, 2, NULL);
+
     while (1)
     {
         vTaskDelay(500/portTICK_PERIOD_MS);

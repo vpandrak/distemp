@@ -17,9 +17,4 @@ int8_t dht11_read();
 uint8_t dht11_get_humidity();
 uint8_t dht11_get_temp();
 
-
-
-
-
-
 #endif

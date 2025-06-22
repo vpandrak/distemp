@@ -1,8 +1,6 @@
 #ifndef FONT_H
 #define FONT_H
 
-//#include <stdio.h>
-
 
 static uint8_t font8x8_basic_tr[128][8] = {
     { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },   // U+0000 (nul)
