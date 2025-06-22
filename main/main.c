@@ -67,6 +67,7 @@ void app_main(void)
     i2c_master_init(&oled,SDA_I2C_PIN, SCL_I2C_PIN, GPIO_NUM_11);
     display_init(&oled, 128, 64);
     display_clear_screen(&oled, false);
+    display_DISPLAY_Text(&oled, 3, "ver 0.1", 7, false);
     MSt_evt_queue = xQueueCreate(10, sizeof(climat));
     if (MSt_evt_queue ==NULL){
         printf("queue is not created\n");
