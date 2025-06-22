@@ -8,36 +8,35 @@
 #include "drivers/display.h"
 #include "drivers/font.h"
 
-//#define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
 
-#define ACTIVATED GPIO_NUM_25
-#define DEACTIVATED GPIO_NUM_26
-#define LED   GPIO_NUM_4
-
-
+typedef struct  __attribute__((packed)){
+    uint8_t temperature;
+    uint8_t humidity;
+} climat;
 
 static QueueHandle_t MSt_evt_queue = NULL;
 
 
-void MSt_btn_isr_handler(void* arg){
-    uint32_t gpio_num = (uint32_t) arg;
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xQueueSendFromISR(MSt_evt_queue, &gpio_num, &xHigherPriorityTaskWoken);
-    if(xHigherPriorityTaskWoken){
-        portYIELD_FROM_ISR();
-    }
-}
-
-
-void MSt_get_data(void* pvParameters){
-    uint32_t io_num;
-    (void) pvParameters;
-
+void MSt_set_data(void* pvParameters){
+    DISPLAY_T* oled = (DISPLAY_T*) pvParameters;
+    climat climat;
+    char temp[8];
+    char hum[7];
     while (1)
     {
-        if (xQueueReceive(MSt_evt_queue, &io_num, portMAX_DELAY))
+        if (xQueueReceive(MSt_evt_queue, &climat, portMAX_DELAY))
         {
-            printf("GPIO[%ld] intr, val %d\n", io_num, gpio_get_level(io_num));
+            ESP_LOGD("MAIN"," Температура воздуха: %d\n", climat.temperature);
+            ESP_LOGD("MAIN"," Влажность воздуха: %d\n", climat.humidity);
+            sniprintf(temp, sizeof(temp), "Temp %d", climat.temperature);
+            sniprintf(hum, sizeof(hum), "Hum %d", climat.humidity);
+            display_clear_screen(oled, false);
+            display_DISPLAY_Text(oled, 0,temp, 8, false);
+            display_DISPLAY_Text(oled, 1, hum, 7, false);
+            vTaskDelay(3000/portTICK_PERIOD_MS);
+
+        } else{
+            ESP_LOGE("MAIN", "Сообщение не получено из очереди");
         }
         
     }
@@ -45,12 +44,17 @@ void MSt_get_data(void* pvParameters){
 }
 
 void MSt_server(void* pvParameters){
-
+    climat clim;
     while (1)
     {
         if (dht11_read() == DHT11_OK){
-            ESP_LOGD("MAIN"," Температура воздуха: %d\n", dht11_get_temp());
-            ESP_LOGD("MAIN"," Влажность воздуха: %d\n", dht11_get_humidity());
+            ESP_LOGD("MAIN", "POINT1");
+            clim.temperature = dht11_get_temp();
+            clim.humidity =  dht11_get_humidity();
+            ESP_LOGD("MAIN", "POINT2");
+            if(xQueueSend(MSt_evt_queue, &clim,portMAX_DELAY) == pdPASS){
+                ESP_LOGD("MAIN","message added to the queue");
+            }
         } else{
             ESP_LOGE("MAIN", "error sensor");
         }
@@ -62,53 +66,29 @@ void MSt_server(void* pvParameters){
 
 void app_main(void)
 {
-
     DISPLAY_T oled;
     int center, top, bottom;
     char lineChar[20];
     oled.flip = true;
     i2c_master_init(&oled,SDA_I2C_PIN, SCL_I2C_PIN, GPIO_NUM_11);
     display_init(&oled, 128, 64);
-    display_clear_screen(&oled, false);
-    display_DISPLAY_Text(&oled, 0, "Hello", 5, false);
-    display_DISPLAY_Text(&oled, 1, "ABCDEFGHIJKLMNOP", 16, false);
-    vTaskDelay(3000/portTICK_PERIOD_MS);
-    gpio_config_t io_conf = {};
+    
+    //display_DISPLAY_Text(&oled, 0, "Hello", 5, false);
+    //display_DISPLAY_Text(&oled, 1, "ABCDEFGHIJKLMNOP", 16, false);
+    
+    
 
-    // Инициализация портов на выход
-    io_conf.pin_bit_mask = (1ULL << LED);
-    io_conf.mode = GPIO_MODE_INPUT_OUTPUT;
-    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-    gpio_config(&io_conf);
-
-    // Инициализация портов на вход
-    io_conf.pin_bit_mask = (1ULL << ACTIVATED | 1ULL << DEACTIVATED);
-    io_conf.mode = GPIO_MODE_INPUT;
-    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-    io_conf.pull_down_en = GPIO_PULLDOWN_ENABLE;
-    io_conf.intr_type = GPIO_INTR_POSEDGE;
-    gpio_config(&io_conf);
-
-    gpio_install_isr_service(0);
-
-    MSt_evt_queue = xQueueCreate(10, sizeof(uint32_t));
+    MSt_evt_queue = xQueueCreate(10, sizeof(climat));
     if (MSt_evt_queue ==NULL){
         printf("queue is not created\n");
     }
 
-    gpio_isr_handler_add(ACTIVATED, MSt_btn_isr_handler, (void*) ACTIVATED);
-    gpio_isr_handler_add(DEACTIVATED, MSt_btn_isr_handler, (void*) DEACTIVATED);
-
-    xTaskCreate(MSt_get_data, "get_data Task", 2048, NULL, 2, NULL);
-    xTaskCreate(MSt_server, "Server Task", 1024, NULL, 2, NULL);
+    
+    xTaskCreate(MSt_set_data, "set_data Task", 4096, &oled, 2, NULL);
+    xTaskCreate(MSt_server, "Server Task", 2048, NULL, 2, NULL);
     dht11_set_pin(DHT11_PIN);
     while (1)
     {
-        //gpio_set_level(LED, !gpio_get_level(LED));
-        //printf("%d\n", dht11_get_temp());
-        //ESP_LOGD("MAIN", "main task");
         vTaskDelay(500/portTICK_PERIOD_MS);
     }
     
