@@ -14,7 +14,13 @@
   "clangd.arguments": [
     "--background-index",
     "--query-driver=/home/vpandrak/.espressif/tools/xtensa-esp-elf/esp-14.2.0_20241119/xtensa-esp-elf/bin/xtensa-esp32-elf-gcc",
-    "--compile-commands-dir=${workspaceFolder}/build"
+    "--compile-commands-dir=/home/vpandrak/projects/distemp/build"
   ],
-  "idf.flashType": "UART"
+  "idf.flashType": "UART",
+  "files.associations": {
+    "dedic_gpio.h": "c",
+    "compare": "c",
+    "cstdint": "c",
+    "format": "c"
+  }
 }
