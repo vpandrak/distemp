@@ -4,22 +4,11 @@
 #include "freertos/queue.h"
 #include "driver/gpio.h"
 
-#include "drivers/keyboard.h"
+#include "drivers/uart.c"
 #include "drivers/sensors.h"
 #include "drivers/display.h"
 #include "drivers/font.h"
 
-#define NUM_ROW 4 
-static gpio_num_t pins_row[] = {GPIO_NUM_35, GPIO_NUM_32, GPIO_NUM_25, GPIO_NUM_33};
-#define NUM_COL 4 
-static gpio_num_t pins_col[] = {GPIO_NUM_26, GPIO_NUM_27, GPIO_NUM_14, GPIO_NUM_12};
-
-static uint32_t mkbd_layout[NUM_ROW][NUM_COL] = {
-            {0x01, 0x02, 0x03, 0x0A},        
-            {0x04, 0x05, 0x06, 0x0B},        
-            {0x07, 0x08, 0x09, 0x0C},        
-            {0x0F, 0x00, 0x0E, 0x0D},
-};
 
 
 // Struct for sending temperature and humidity via queue between sensor task and display task
@@ -31,7 +20,6 @@ typedef struct  __attribute__((packed)){
 
 
 static QueueHandle_t MSt_evt_queue = NULL;
-static QueueHandle_t queue_mkbd = NULL;
 
 // Function for sending struct data to display
 void MSt_send_to_display(void* pvParameters){
@@ -44,8 +32,8 @@ void MSt_send_to_display(void* pvParameters){
     {
         if (xQueueReceive(MSt_evt_queue, &climat, portMAX_DELAY))
         {
-            ESP_LOGD("MAIN"," Температура воздуха: %d\n", climat.temperature);
-            ESP_LOGD("MAIN"," Влажность воздуха: %d\n", climat.humidity);
+            ESP_LOGI("MAIN"," Температура воздуха: %d\n", climat.temperature);
+            ESP_LOGI("MAIN"," Влажность воздуха: %d\n", climat.humidity);
             // join rext with value of temp and humidity
             sniprintf(temp, sizeof(temp), "Temp %d", climat.temperature);
             sniprintf(hum, sizeof(hum), "Hum %d", climat.humidity);
@@ -78,13 +66,10 @@ void MSt_get_data(void* pvParameters){
     
 }
 
-static void MSt_get_key(void* pvParameters){
-    
-    
-}
 
 void app_main(void)
 {
+    uart_init();
     DISPLAY_T oled;
     i2c_master_init(&oled,SDA_I2C_PIN, SCL_I2C_PIN, GPIO_NUM_11);
     display_init(&oled, 128, 64);
@@ -94,12 +79,6 @@ void app_main(void)
     if (MSt_evt_queue ==NULL){
         printf("queue is not created\n");
     }
-    mkbd_keyboard mkbd = {
-        .row_gpio = pins_row,
-        .col_gpio = pins_col, 
-    };
-  
-    keyboard_init(&mkbd);
 
 
     dht11_set_pin(DHT11_PIN);

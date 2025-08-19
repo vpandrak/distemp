@@ -18,7 +18,7 @@ int dht11_get_signal_level(int usTimeOut, int state){
     {
         if (uSec > usTimeOut)
         {
-            ESP_LOGD(TAG, "Timeout error!");
+            ESP_LOGI(TAG, "Timeout error!");
             return -1;
         }
         uSec++;
@@ -30,7 +30,7 @@ int dht11_get_signal_level(int usTimeOut, int state){
 
 esp_err_t dht11_set_pin(uint8_t pin){
 
-    ESP_LOGD(TAG, "Setting data pin...");
+    ESP_LOGI(TAG, "Setting data pin...");
 
     dht11_pin = pin;
     return ESP_OK;
@@ -38,7 +38,7 @@ esp_err_t dht11_set_pin(uint8_t pin){
 
 int8_t dht11_read(){
 
-    ESP_LOGD(TAG, "Reading sensor...");
+    ESP_LOGI(TAG, "Reading sensor...");
 
     uint8_t bytes[NUM_OF_BYTES];
     uint8_t bitIdx = 7;
@@ -108,7 +108,7 @@ int8_t dht11_read(){
         return DHT11_OK;
     }
 
-    ESP_LOGD(TAG, "Checksum error!");
+    ESP_LOGI(TAG, "Checksum error!");
     return DHT11_ERROR_CHECKSUM; 
 }
 
